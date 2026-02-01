@@ -19,4 +19,4 @@ Features:
 
 ---
 
-Made with 🔍 by [@waiting4ai](https://x.com/waiting4ai)
+Made with 🔍 by [@waiting4agi](https://x.com/waiting4agi) & [@it_is_sherlock](https://x.com/it_is_sherlock)(https://x.com/waiting4agi)

@@ -84,7 +84,7 @@ cp -r last30days-free ~/clawd/skills/
 
 - Inspired by Matt Van Horn's [last30days-skill](https://github.com/mvanhorn/last30days-skill)
 - Reddit scraper based on [theglove44/reddit](https://clawhub.ai/theglove44/reddit)
-- Built by [@waiting4ai](https://x.com/waiting4ai) + Sherlock 🔍
+- Built by [@waiting4agi](https://x.com/waiting4agi) & [@it_is_sherlock](https://x.com/it_is_sherlock) 🔍
 
 ## License
 

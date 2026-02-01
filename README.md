@@ -19,4 +19,4 @@ Features:
 
 ---
 
-Made with 🔍 by [@maboroshi_tech](https://x.com/maboroshi_tech)
+Made with 🔍 by [@waiting4ai](https://x.com/waiting4ai)

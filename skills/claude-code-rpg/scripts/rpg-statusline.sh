@@ -70,17 +70,13 @@ fi
 
 # Build output
 if [[ -n "$expanded" ]]; then
-    # Expanded mode: show the event message
+    # Event just happened: show RPG notification
     if [[ -n "$model" ]]; then
         echo "${expanded} | ${model}"
     else
         echo "${expanded}"
     fi
 else
-    # Compact mode: just a small badge
-    if [[ -n "$model" ]]; then
-        echo "${model} | ${emoji} Lvl ${level} ${xp}/${next_xp}"
-    else
-        echo "${emoji} ${title} Lvl ${level} | ${xp}/${next_xp}"
-    fi
+    # No recent event: show default status (no RPG clutter)
+    echo "${model}"
 fi

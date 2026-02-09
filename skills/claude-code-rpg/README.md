@@ -188,15 +188,24 @@ The achievement system is simple — just add new `check_achievement` calls to a
 - Cross-platform: macOS + Linux
 - Hooks config in `.claude/settings.json`
 
+### What the installer touches
+
+| File | Action |
+|---|---|
+| `~/.claude/settings.json` | Adds hooks config (backed up automatically before any changes) |
+| `~/.claude-rpg/` | Created new — RPG engine, state, sounds, backups |
+
+No other files are modified. The installer **always creates a timestamped backup** of your settings before making changes. Backups are stored in `~/.claude-rpg/backups/`.
+
 ---
 
 ## Uninstall
 
 ```bash
-# Remove RPG data
-rm -rf ~/.claude-rpg
+# Option 1: Restore your original settings from backup
+cp ~/.claude-rpg/backups/settings.json.*.bak ~/.claude/settings.json
 
-# Remove hooks from settings (or edit ~/.claude/settings.json manually)
+# Option 2: Just remove the hooks (keep other settings)
 python3 -c "
 import json
 with open('$HOME/.claude/settings.json') as f:
@@ -205,6 +214,9 @@ s.pop('hooks', None)
 with open('$HOME/.claude/settings.json', 'w') as f:
     json.dump(s, f, indent=2)
 "
+
+# Remove RPG data
+rm -rf ~/.claude-rpg
 ```
 
 ---

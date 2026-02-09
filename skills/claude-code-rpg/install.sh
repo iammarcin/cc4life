@@ -26,17 +26,30 @@ printf "  ${GOLD}╚════════════════════
 echo ""
 
 # Step 1: Create RPG directory
-printf "  ${CYAN}[1/3]${RESET} Setting up RPG directory...\n"
+printf "  ${CYAN}[1/4]${RESET} Setting up RPG directory...\n"
 mkdir -p "$RPG_DIR/scripts"
 mkdir -p "$RPG_DIR/sounds"
 
 # Step 2: Copy scripts
-printf "  ${CYAN}[2/3]${RESET} Installing RPG engine...\n"
+printf "  ${CYAN}[2/4]${RESET} Installing RPG engine...\n"
 cp "$PROJECT_DIR/scripts/rpg-engine.sh" "$RPG_DIR/scripts/"
 chmod +x "$RPG_DIR/scripts/rpg-engine.sh"
 
-# Step 3: Set up hooks
-printf "  ${CYAN}[3/3]${RESET} Configuring Claude Code hooks...\n"
+# Step 3: Backup existing settings
+printf "  ${CYAN}[3/4]${RESET} Backing up Claude Code settings...\n"
+BACKUP_DIR="$RPG_DIR/backups"
+mkdir -p "$BACKUP_DIR"
+
+if [[ -f "$CLAUDE_SETTINGS" ]]; then
+    BACKUP_FILE="$BACKUP_DIR/settings.json.$(date +%Y%m%d_%H%M%S).bak"
+    cp "$CLAUDE_SETTINGS" "$BACKUP_FILE"
+    printf "  ${GREEN}✓${RESET} Backup saved to ${DIM}${BACKUP_FILE}${RESET}\n"
+else
+    printf "  ${DIM}  No existing settings to back up${RESET}\n"
+fi
+
+# Step 4: Set up hooks
+printf "  ${CYAN}[4/4]${RESET} Configuring Claude Code hooks...\n"
 
 if [[ -f "$CLAUDE_SETTINGS" ]]; then
     # Check if hooks already exist

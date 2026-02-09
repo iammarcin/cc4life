@@ -12,6 +12,7 @@ RPG_DIR="${CLAUDE_RPG_DIR:-$HOME/.claude-rpg}"
 STATE_FILE="$RPG_DIR/state.json"
 SOUNDS_DIR="$RPG_DIR/sounds"
 LOG_FILE="$RPG_DIR/adventure.log"
+EVENT_FILE="$RPG_DIR/.last_event"
 
 # XP rewards per event
 XP_QUEST_ACCEPT=5      # UserPromptSubmit
@@ -298,6 +299,18 @@ show_session_start() {
 }
 
 # ═══════════════════════════════════════════════
+#  STATUS LINE EVENT NOTIFICATIONS
+# ═══════════════════════════════════════════════
+
+# Write a transient event for the status line to pick up (shown once, then cleared)
+notify_statusline() {
+    local event_type="$1"  # level_up, achievement, quest_complete, session_start
+    local message="$2"
+    # Format: timestamp|type|message (timestamp first so message can contain pipes)
+    echo "$(date +%s)|${event_type}|${message}" > "$EVENT_FILE"
+}
+
+# ═══════════════════════════════════════════════
 #  SOUND SYSTEM
 # ═══════════════════════════════════════════════
 
@@ -376,6 +389,7 @@ award_xp() {
     if [[ $new_level -gt $old_level ]]; then
         play_sound "level_up"
         show_level_up "$new_level" "$new_title"
+        notify_statusline "level_up" "LEVEL UP! ${new_title} Lvl ${new_level}"
 
         # Achievement for reaching specific levels
         case $new_level in
@@ -400,6 +414,7 @@ check_achievement() {
     if [[ "$result" == "NEW" ]]; then
         play_sound "achievement"
         show_achievement "$name"
+        notify_statusline "achievement" "UNLOCKED: ${name}"
     fi
 }
 
@@ -518,6 +533,7 @@ handle_session_start() {
 
     play_sound "session_start"
     show_session_start "$level" "$title" "$sessions" "$streak"
+    notify_statusline "session_start" "New adventure! ${title} Lvl ${level} | Streak ${streak}d"
     check_time_achievements
 }
 
@@ -541,6 +557,7 @@ handle_quest_complete() {
 
     local flavor="${COMPLETE_FLAVORS[$((RANDOM % ${#COMPLETE_FLAVORS[@]}))]}"
     award_xp $XP_QUEST_COMPLETE "$flavor" "quest_complete"
+    notify_statusline "quest_complete" "+${XP_QUEST_COMPLETE} XP | ${flavor}"
 
     check_quest_achievements "$quests"
     check_daily_achievements "$today_quests"

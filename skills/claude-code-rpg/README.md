@@ -212,7 +212,7 @@ with open('$HOME/.claude/settings.json', 'w') as f:
 ## Credits
 
 - Inspired by [@delba_oliveira](https://x.com/delba_oliveira/status/2020515023412744477) and the Claude Code hooks community
-- Built by [@iammarcin](https://x.com/iammarcin)
+- Built by [@waiting4agi](https://x.com/waiting4agi)
 - Part of [cc4life](https://github.com/iammarcin/cc4life)
 
 ---

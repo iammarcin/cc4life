@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code RPG Mode - Status Line Script
-# Compact by default, expands briefly on big moments (level up, achievement, quest complete)
+# Model name always visible. RPG notifications appear after it for ~30 seconds on events.
 #
 # Setup: bash install.sh --statusline
 
@@ -8,6 +8,7 @@ set -euo pipefail
 
 STATE_FILE="${HOME}/.claude-rpg/state.json"
 EVENT_FILE="${HOME}/.claude-rpg/.last_event"
+EVENT_DURATION=30  # seconds to show RPG notification
 
 # Read stdin (Claude Code passes session JSON)
 input=$(cat)
@@ -30,53 +31,33 @@ print(d.get('xp', 0), d.get('level', 1), d.get('title', 'Apprentice'))
 " 2>/dev/null || echo "0 1 Apprentice")"
 
 # Level config
-LEVELS=(0 100 300 600 1000 1500 2200 3000 4000 5500)
 EMOJIS=("📜" "🗡️" "⚔️" "🛡️" "🧙" "🔮" "👑" "🌟" "✨" "🌌")
-
 emoji="${EMOJIS[$((level-1))]}"
-next_xp=999999
-if [[ $level -lt ${#LEVELS[@]} ]]; then
-    next_xp="${LEVELS[$level]}"
-fi
 
-# Check for recent event (show expanded if event happened in last 30 seconds)
-expanded=""
+# Check for recent event (stays visible for EVENT_DURATION seconds, then auto-expires)
+rpg_info=""
 if [[ -f "$EVENT_FILE" ]]; then
-    # Format: timestamp|type|message (message may contain pipes)
     IFS='|' read -r event_ts event_type event_msg < "$EVENT_FILE"
     now=$(date +%s)
     age=$(( now - ${event_ts:-0} ))
 
-    if [[ $age -lt 30 ]]; then
+    if [[ $age -lt $EVENT_DURATION ]]; then
+        # Event is fresh — show it
         case "$event_type" in
-            level_up)
-                expanded="⚡ ${event_msg} ⚡"
-                ;;
-            achievement)
-                expanded="🏆 ${event_msg}"
-                ;;
-            quest_complete)
-                expanded="${emoji} ${title} Lvl ${level} | ${event_msg}"
-                ;;
-            session_start)
-                expanded="⚔️ ${event_msg}"
-                ;;
+            level_up)     rpg_info="⚡ ${event_msg} ⚡" ;;
+            achievement)  rpg_info="🏆 ${event_msg}" ;;
+            quest_complete) rpg_info="${emoji} +25 XP ${event_msg}" ;;
+            session_start)  rpg_info="⚔️ ${event_msg}" ;;
         esac
+    else
+        # Event expired — clean up
+        rm -f "$EVENT_FILE"
     fi
-
-    # Clear event after reading so it only shows once
-    rm -f "$EVENT_FILE"
 fi
 
-# Build output
-if [[ -n "$expanded" ]]; then
-    # Event just happened: show RPG notification
-    if [[ -n "$model" ]]; then
-        echo "${expanded} | ${model}"
-    else
-        echo "${expanded}"
-    fi
+# Output: model always first, RPG notification appended when active
+if [[ -n "$rpg_info" ]]; then
+    echo "${model} | ${rpg_info}"
 else
-    # No recent event: show default status (no RPG clutter)
     echo "${model}"
 fi

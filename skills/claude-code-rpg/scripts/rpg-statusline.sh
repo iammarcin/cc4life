@@ -8,7 +8,7 @@ set -euo pipefail
 
 STATE_FILE="${HOME}/.claude-rpg/state.json"
 EVENT_FILE="${HOME}/.claude-rpg/.last_event"
-EVENT_DURATION=30  # seconds to show RPG notification
+EVENT_DURATION=5  # seconds to show RPG notification
 
 # Read stdin (Claude Code passes session JSON)
 input=$(cat)

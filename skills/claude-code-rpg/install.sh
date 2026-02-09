@@ -17,6 +17,13 @@ RPG_DIR="$HOME/.claude-rpg"
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"
+SETUP_STATUSLINE=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --statusline) SETUP_STATUSLINE=true ;;
+    esac
+done
 
 echo ""
 printf "  ${GOLD}╔══════════════════════════════════════╗${RESET}\n"
@@ -33,7 +40,9 @@ mkdir -p "$RPG_DIR/sounds"
 # Step 2: Copy scripts
 printf "  ${CYAN}[2/4]${RESET} Installing RPG engine...\n"
 cp "$PROJECT_DIR/scripts/rpg-engine.sh" "$RPG_DIR/scripts/"
+cp "$PROJECT_DIR/scripts/rpg-statusline.sh" "$RPG_DIR/scripts/"
 chmod +x "$RPG_DIR/scripts/rpg-engine.sh"
+chmod +x "$RPG_DIR/scripts/rpg-statusline.sh"
 
 # Step 3: Backup existing settings
 printf "  ${CYAN}[3/4]${RESET} Backing up Claude Code settings...\n"
@@ -93,6 +102,21 @@ else
     printf "  ${GREEN}✓${RESET} Created ${CLAUDE_SETTINGS} with RPG hooks\n"
 fi
 
+# Optional: Set up status line
+if [[ "$SETUP_STATUSLINE" == true ]]; then
+    printf "  ${CYAN}[+]${RESET} Setting up RPG status line...\n"
+    python3 -c "
+import json, os
+settings_path = os.path.expanduser('$CLAUDE_SETTINGS')
+with open(settings_path) as f:
+    settings = json.load(f)
+settings['statusline_command'] = os.path.expanduser('~/.claude-rpg/scripts/rpg-statusline.sh')
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2)
+" 2>/dev/null
+    printf "  ${GREEN}✓${RESET} Status line configured — your level & XP show at the bottom of Claude Code\n"
+fi
+
 # Done!
 echo ""
 printf "  ${GREEN}${BOLD}✅ Installation complete!${RESET}\n"
@@ -108,13 +132,18 @@ echo ""
 printf "  ${GOLD}Now open Claude Code and start your adventure! 🎮${RESET}\n"
 echo ""
 
-# Optional: Add sounds tip
-if [[ ! "$(ls -A "$RPG_DIR/sounds/" 2>/dev/null)" ]]; then
-    printf "  ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
-    printf "  ${DIM}💡 Want sounds? Add .wav or .mp3 files to ~/.claude-rpg/sounds/${RESET}\n"
-    printf "  ${DIM}   Named: session_start, quest_accept, quest_complete,${RESET}\n"
-    printf "  ${DIM}   code_forge, spell_cast, notification, level_up, achievement${RESET}\n"
-    printf "  ${DIM}   Free RPG sounds: https://opengameart.org/art-search?keys=rpg+sound${RESET}\n"
-    printf "  ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+# Tips for optional features
+printf "  ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+if [[ "$SETUP_STATUSLINE" != true ]]; then
+    printf "  ${DIM}💡 Want to see your level & XP at the bottom of Claude Code?${RESET}\n"
+    printf "  ${DIM}   Run: ${RESET}${CYAN}bash install.sh --statusline${RESET}\n"
     echo ""
 fi
+if [[ ! "$(ls -A "$RPG_DIR/sounds/" 2>/dev/null)" ]]; then
+    printf "  ${DIM}🔊 Want RPG sound effects? Add .wav/.mp3 files to ~/.claude-rpg/sounds/${RESET}\n"
+    printf "  ${DIM}   Named: session_start, quest_accept, quest_complete,${RESET}\n"
+    printf "  ${DIM}   code_forge, spell_cast, notification, level_up, achievement${RESET}\n"
+    printf "  ${DIM}   Free sounds: https://opengameart.org/art-search?keys=rpg+sound${RESET}\n"
+fi
+printf "  ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+echo ""

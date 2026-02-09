@@ -69,6 +69,19 @@ bash install.sh
 
 That's it. Open Claude Code and start questing.
 
+### Enable the Status Line (recommended)
+
+Want to see your level and XP **permanently at the bottom** of Claude Code? Run:
+
+```bash
+bash install.sh --statusline
+```
+
+This adds an RPG status bar that updates in real-time:
+```
+⚔️ Code Warrior Lvl 3 | 423/600 XP [███░░] | claude-opus-4-6
+```
+
 ---
 
 ## How It Works

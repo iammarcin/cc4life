@@ -16,7 +16,7 @@ RESET='\033[0m'
 RPG_DIR="$HOME/.claude-rpg"
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$SCRIPT_DIR"
 
 echo ""
 printf "  ${GOLD}╔══════════════════════════════════════╗${RESET}\n"

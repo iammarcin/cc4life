@@ -115,7 +115,11 @@ import json, os
 settings_path = os.path.expanduser('$CLAUDE_SETTINGS')
 with open(settings_path) as f:
     settings = json.load(f)
-settings['statusline_command'] = os.path.expanduser('~/.claude-rpg/scripts/rpg-statusline.sh')
+settings.pop('statusline_command', None)  # remove old wrong field if present
+settings['statusLine'] = {
+    'type': 'command',
+    'command': '~/.claude-rpg/scripts/rpg-statusline.sh'
+}
 with open(settings_path, 'w') as f:
     json.dump(settings, f, indent=2)
 " 2>/dev/null

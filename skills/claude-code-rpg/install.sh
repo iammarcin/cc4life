@@ -61,17 +61,8 @@ fi
 printf "  ${CYAN}[4/4]${RESET} Configuring Claude Code hooks...\n"
 
 if [[ -f "$CLAUDE_SETTINGS" ]]; then
-    # Check if hooks already exist
-    if python3 -c "
-import json
-with open('$CLAUDE_SETTINGS') as f:
-    data = json.load(f)
-if 'hooks' in data and data['hooks']:
-    exit(1)
-exit(0)
-" 2>/dev/null; then
-        # No existing hooks - safe to merge
-        python3 -c "
+    # Merge RPG hooks into existing settings (preserves existing hooks)
+    python3 -c "
 import json
 
 with open('$CLAUDE_SETTINGS') as f:
@@ -80,21 +71,35 @@ with open('$CLAUDE_SETTINGS') as f:
 with open('$PROJECT_DIR/settings.json') as f:
     rpg_hooks = json.load(f)
 
-settings['hooks'] = rpg_hooks['hooks']
+existing_hooks = settings.get('hooks', {})
+had_hooks = bool(existing_hooks)
+
+# Merge: for each event type, append RPG entries to existing array
+for event, rpg_entries in rpg_hooks['hooks'].items():
+    if event in existing_hooks:
+        # Avoid duplicates: skip if rpg-engine.sh already present
+        existing_cmds = json.dumps(existing_hooks[event])
+        if 'rpg-engine.sh' not in existing_cmds:
+            existing_hooks[event].extend(rpg_entries)
+    else:
+        existing_hooks[event] = rpg_entries
+
+settings['hooks'] = existing_hooks
 
 with open('$CLAUDE_SETTINGS', 'w') as f:
     json.dump(settings, f, indent=2)
-" 2>/dev/null
-        printf "  ${GREEN}✓${RESET} Hooks added to existing settings\n"
-    else
-        # Existing hooks found - don't overwrite
-        printf "  ${YELLOW}⚠${RESET}  Existing hooks found in ${CLAUDE_SETTINGS}\n"
-        printf "    ${DIM}To avoid conflicts, hooks were NOT auto-merged.${RESET}\n"
-        printf "    ${DIM}Merge manually from: ${PROJECT_DIR}/settings.json${RESET}\n"
-        echo ""
-        printf "    ${BOLD}Quick option:${RESET} Copy RPG settings to project-level hooks instead:\n"
-        printf "    ${DIM}cp ${PROJECT_DIR}/settings.json .claude/settings.json${RESET}\n"
-    fi
+
+if had_hooks:
+    print('MERGED')
+else:
+    print('ADDED')
+" 2>/dev/null | while read -r result; do
+        if [[ "$result" == "MERGED" ]]; then
+            printf "  ${GREEN}✓${RESET} RPG hooks merged alongside your existing hooks\n"
+        else
+            printf "  ${GREEN}✓${RESET} Hooks added to settings\n"
+        fi
+    done
 else
     # No settings file at all - create one
     mkdir -p "$HOME/.claude"

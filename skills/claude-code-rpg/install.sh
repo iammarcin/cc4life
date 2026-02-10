@@ -1,158 +1,275 @@
 #!/usr/bin/env bash
-# Claude Code RPG Mode - One-command installer
+# Claude Code RPG Mode - Installer/Uninstaller
 # https://github.com/iammarcin/cc4life
 
 set -euo pipefail
 
-RED='\033[0;31m'
+RPG_DIR="${HOME}/.claude-rpg"
+SETTINGS_FILE="${HOME}/.claude/settings.json"
+BACKUP_FILE="${RPG_DIR}/backups/settings.backup.$(date +%Y%m%d_%H%M%S).json"
+
+# Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 CYAN='\033[0;36m'
-GOLD='\033[38;5;220m'
-BOLD='\033[1m'
-DIM='\033[2m'
 RESET='\033[0m'
 
-RPG_DIR="$HOME/.claude-rpg"
-CLAUDE_SETTINGS="$HOME/.claude/settings.json"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR"
-SETUP_STATUSLINE=false
+show_usage() {
+    cat << EOF
+${CYAN}Claude Code RPG Mode - Installer${RESET}
 
-for arg in "$@"; do
-    case "$arg" in
-        --statusline) SETUP_STATUSLINE=true ;;
-    esac
-done
+Usage: $0 [command]
 
-echo ""
-printf "  ${GOLD}╔══════════════════════════════════════╗${RESET}\n"
-printf "  ${GOLD}║${RESET}  ${BOLD}⚔️  Claude Code RPG Mode  ⚔️${RESET}         ${GOLD}║${RESET}\n"
-printf "  ${GOLD}║${RESET}  ${DIM}Turn your coding into an adventure${RESET}   ${GOLD}║${RESET}\n"
-printf "  ${GOLD}╚══════════════════════════════════════╝${RESET}\n"
-echo ""
+Commands:
+    install     Install RPG mode hooks and statusline
+    uninstall   Remove RPG mode and restore original settings
+    status      Check installation status
+    help        Show this help message
 
-# Step 1: Create RPG directory
-printf "  ${CYAN}[1/4]${RESET} Setting up RPG directory...\n"
-mkdir -p "$RPG_DIR/scripts"
-mkdir -p "$RPG_DIR/sounds"
+Examples:
+    $0 install
+    $0 uninstall
+    $0 status
+EOF
+}
 
-# Step 2: Copy scripts
-printf "  ${CYAN}[2/4]${RESET} Installing RPG engine...\n"
-cp "$PROJECT_DIR/scripts/rpg-engine.sh" "$RPG_DIR/scripts/"
-cp "$PROJECT_DIR/scripts/rpg-statusline.sh" "$RPG_DIR/scripts/"
-chmod +x "$RPG_DIR/scripts/rpg-engine.sh"
-chmod +x "$RPG_DIR/scripts/rpg-statusline.sh"
+check_requirements() {
+    if [ ! -d "$HOME/.claude" ]; then
+        echo -e "${RED}Error: Claude Code directory not found at ~/.claude${RESET}"
+        echo "Please install Claude Code first: https://claude.com/claude-code"
+        exit 1
+    fi
 
-# Step 3: Backup existing settings
-printf "  ${CYAN}[3/4]${RESET} Backing up Claude Code settings...\n"
-BACKUP_DIR="$RPG_DIR/backups"
-mkdir -p "$BACKUP_DIR"
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        echo -e "${YELLOW}Warning: settings.json not found. Creating default...${RESET}"
+        echo '{}' > "$SETTINGS_FILE"
+    fi
+}
 
-if [[ -f "$CLAUDE_SETTINGS" ]]; then
-    BACKUP_FILE="$BACKUP_DIR/settings.json.$(date +%Y%m%d_%H%M%S).bak"
-    cp "$CLAUDE_SETTINGS" "$BACKUP_FILE"
-    printf "  ${GREEN}✓${RESET} Backup saved to ${DIM}${BACKUP_FILE}${RESET}\n"
-else
-    printf "  ${DIM}  No existing settings to back up${RESET}\n"
-fi
+backup_settings() {
+    mkdir -p "${RPG_DIR}/backups"
+    if [ -f "$SETTINGS_FILE" ]; then
+        cp "$SETTINGS_FILE" "$BACKUP_FILE"
+        echo -e "${GREEN}✓ Backed up settings to: $BACKUP_FILE${RESET}"
+    fi
+}
 
-# Step 4: Set up hooks
-printf "  ${CYAN}[4/4]${RESET} Configuring Claude Code hooks...\n"
+install_rpg() {
+    echo -e "${CYAN}Installing Claude Code RPG Mode...${RESET}\n"
 
-if [[ -f "$CLAUDE_SETTINGS" ]]; then
-    # Merge RPG hooks into existing settings (preserves existing hooks)
-    python3 -c "
+    check_requirements
+    backup_settings
+
+    # Create RPG directory structure if needed
+    mkdir -p "$RPG_DIR"/{scripts,sounds,backups}
+
+    # Initialize state if doesn't exist
+    if [ ! -f "$RPG_DIR/state.json" ]; then
+        cat > "$RPG_DIR/state.json" << 'EOFSTATE'
+{
+  "xp": 0,
+  "level": 0,
+  "total_sessions": 0,
+  "streak_days": 0,
+  "last_session": ""
+}
+EOFSTATE
+        echo -e "${GREEN}✓ Initialized RPG state${RESET}"
+    fi
+
+    # Install hooks configuration
+    python3 << EOFPYTHON
 import json
 
-with open('$CLAUDE_SETTINGS') as f:
-    settings = json.load(f)
+settings_file = "$SETTINGS_FILE"
+rpg_dir = "$RPG_DIR"
 
-with open('$PROJECT_DIR/settings.json') as f:
-    rpg_hooks = json.load(f)
+try:
+    with open(settings_file, 'r') as f:
+        settings = json.load(f)
+except:
+    settings = {}
 
-existing_hooks = settings.get('hooks', {})
-had_hooks = bool(existing_hooks)
-
-# Merge: for each event type, append RPG entries to existing array
-for event, rpg_entries in rpg_hooks['hooks'].items():
-    if event in existing_hooks:
-        # Avoid duplicates: skip if rpg-engine.sh already present
-        existing_cmds = json.dumps(existing_hooks[event])
-        if 'rpg-engine.sh' not in existing_cmds:
-            existing_hooks[event].extend(rpg_entries)
-    else:
-        existing_hooks[event] = rpg_entries
-
-settings['hooks'] = existing_hooks
-
-with open('$CLAUDE_SETTINGS', 'w') as f:
-    json.dump(settings, f, indent=2)
-
-if had_hooks:
-    print('MERGED')
-else:
-    print('ADDED')
-" 2>/dev/null | while read -r result; do
-        if [[ "$result" == "MERGED" ]]; then
-            printf "  ${GREEN}✓${RESET} RPG hooks merged alongside your existing hooks\n"
-        else
-            printf "  ${GREEN}✓${RESET} Hooks added to settings\n"
-        fi
-    done
-else
-    # No settings file at all - create one
-    mkdir -p "$HOME/.claude"
-    cp "$PROJECT_DIR/settings.json" "$CLAUDE_SETTINGS"
-    printf "  ${GREEN}✓${RESET} Created ${CLAUDE_SETTINGS} with RPG hooks\n"
-fi
-
-# Optional: Set up status line
-if [[ "$SETUP_STATUSLINE" == true ]]; then
-    printf "  ${CYAN}[+]${RESET} Setting up RPG status line...\n"
-    python3 -c "
-import json, os
-settings_path = os.path.expanduser('$CLAUDE_SETTINGS')
-with open(settings_path) as f:
-    settings = json.load(f)
-settings.pop('statusline_command', None)  # remove old wrong field if present
-settings['statusLine'] = {
-    'type': 'command',
-    'command': '~/.claude-rpg/scripts/rpg-statusline.sh'
+# Add RPG hooks
+settings['hooks'] = {
+    "SessionStart": [{
+        "hooks": [{
+            "type": "command",
+            "command": f"{rpg_dir}/scripts/rpg-engine.sh session_start"
+        }]
+    }],
+    "UserPromptSubmit": [{
+        "hooks": [{
+            "type": "command",
+            "command": f"{rpg_dir}/scripts/rpg-engine.sh quest_accept"
+        }]
+    }],
+    "Stop": [{
+        "hooks": [{
+            "type": "command",
+            "command": f"{rpg_dir}/scripts/rpg-engine.sh quest_complete"
+        }]
+    }],
+    "Notification": [{
+        "hooks": [{
+            "type": "command",
+            "command": f"{rpg_dir}/scripts/rpg-engine.sh notification"
+        }]
+    }],
+    "PostToolUse": [
+        {
+            "matcher": "Edit",
+            "hooks": [{
+                "type": "command",
+                "command": f"{rpg_dir}/scripts/rpg-engine.sh code_forge"
+            }]
+        },
+        {
+            "matcher": "Write",
+            "hooks": [{
+                "type": "command",
+                "command": f"{rpg_dir}/scripts/rpg-engine.sh artifact_create"
+            }]
+        },
+        {
+            "matcher": "Bash",
+            "hooks": [{
+                "type": "command",
+                "command": f"{rpg_dir}/scripts/rpg-engine.sh spell_cast"
+            }]
+        }
+    ],
+    "SubagentStop": [{
+        "hooks": [{
+            "type": "command",
+            "command": f"{rpg_dir}/scripts/rpg-engine.sh subquest"
+        }]
+    }]
 }
-with open(settings_path, 'w') as f:
+
+# Add statusline
+settings['statusLine'] = {
+    "type": "command",
+    "command": f"{rpg_dir}/scripts/rpg-statusline.sh"
+}
+
+with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)
-" 2>/dev/null
-    printf "  ${GREEN}✓${RESET} Status line configured — your level & XP show at the bottom of Claude Code\n"
-fi
 
-# Done!
-echo ""
-printf "  ${GREEN}${BOLD}✅ Installation complete!${RESET}\n"
-echo ""
-printf "  ${DIM}RPG data:${RESET}    $RPG_DIR/\n"
-printf "  ${DIM}Scripts:${RESET}     $RPG_DIR/scripts/\n"
-printf "  ${DIM}Sounds:${RESET}      $RPG_DIR/sounds/ ${DIM}(add .wav/.mp3 files here)${RESET}\n"
-echo ""
-printf "  ${BOLD}Quick commands:${RESET}\n"
-printf "    ${CYAN}~/.claude-rpg/scripts/rpg-engine.sh stats${RESET}  - View your character\n"
-printf "    ${CYAN}~/.claude-rpg/scripts/rpg-engine.sh reset${RESET}  - Start fresh\n"
-echo ""
-printf "  ${GOLD}Now open Claude Code and start your adventure! 🎮${RESET}\n"
-echo ""
+print("✓ Installed hooks configuration")
 
-# Tips for optional features
-printf "  ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
-if [[ "$SETUP_STATUSLINE" != true ]]; then
-    printf "  ${DIM}💡 Want to see your level & XP at the bottom of Claude Code?${RESET}\n"
-    printf "  ${DIM}   Run: ${RESET}${CYAN}bash install.sh --statusline${RESET}\n"
+EOFPYTHON
+
+    echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${GREEN}✓ RPG Mode installed successfully!${RESET}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+    echo -e "Restart Claude Code to activate your adventure!"
+    echo -e "\n${YELLOW}To uninstall: $0 uninstall${RESET}\n"
+}
+
+uninstall_rpg() {
+    echo -e "${CYAN}Uninstalling Claude Code RPG Mode...${RESET}\n"
+
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        echo -e "${RED}Error: settings.json not found${RESET}"
+        exit 1
+    fi
+
+    backup_settings
+
+    # Remove hooks and statusline
+    python3 << EOFPYTHON
+import json
+
+settings_file = "$SETTINGS_FILE"
+
+try:
+    with open(settings_file, 'r') as f:
+        settings = json.load(f)
+except:
+    print("Error reading settings.json")
+    sys.exit(1)
+
+# Remove RPG-related keys
+removed = []
+if 'hooks' in settings:
+    del settings['hooks']
+    removed.append('hooks')
+if 'statusLine' in settings:
+    del settings['statusLine']
+    removed.append('statusLine')
+
+with open(settings_file, 'w') as f:
+    json.dump(settings, f, indent=2)
+
+if removed:
+    print(f"✓ Removed: {', '.join(removed)}")
+else:
+    print("⚠ No RPG configuration found")
+
+EOFPYTHON
+
+    echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${GREEN}✓ RPG Mode uninstalled${RESET}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+    echo -e "Your progress is saved in: ${RPG_DIR}/state.json"
+    echo -e "Backups are in: ${RPG_DIR}/backups/\n"
+    echo -e "${YELLOW}Note: RPG files kept in ${RPG_DIR}${RESET}"
+    echo -e "${YELLOW}To reinstall: $0 install${RESET}"
+    echo -e "${YELLOW}To delete everything: rm -rf ${RPG_DIR}${RESET}\n"
+}
+
+check_status() {
+    echo -e "${CYAN}Claude Code RPG Mode Status${RESET}\n"
+
+    if [ ! -d "$RPG_DIR" ]; then
+        echo -e "${RED}✗ Not installed${RESET}"
+        echo -e "\nRun: $0 install"
+        exit 0
+    fi
+
+    echo -e "${GREEN}✓ RPG directory exists: $RPG_DIR${RESET}"
+
+    if [ -f "$RPG_DIR/state.json" ]; then
+        echo -e "${GREEN}✓ State file exists${RESET}"
+        echo -e "\nCurrent progress:"
+        cat "$RPG_DIR/state.json" | python3 -m json.tool
+    else
+        echo -e "${YELLOW}⚠ State file missing${RESET}"
+    fi
+
+    if [ -f "$SETTINGS_FILE" ]; then
+        if grep -q "rpg-engine.sh" "$SETTINGS_FILE" 2>/dev/null; then
+            echo -e "\n${GREEN}✓ Hooks are installed${RESET}"
+        else
+            echo -e "\n${YELLOW}⚠ Hooks not found in settings.json${RESET}"
+            echo -e "Run: $0 install"
+        fi
+    else
+        echo -e "\n${RED}✗ settings.json not found${RESET}"
+    fi
+
     echo ""
-fi
-if [[ ! "$(ls -A "$RPG_DIR/sounds/" 2>/dev/null)" ]]; then
-    printf "  ${DIM}🔊 Want RPG sound effects? Add .wav/.mp3 files to ~/.claude-rpg/sounds/${RESET}\n"
-    printf "  ${DIM}   Named: session_start, quest_accept, quest_complete,${RESET}\n"
-    printf "  ${DIM}   code_forge, spell_cast, notification, level_up, achievement${RESET}\n"
-    printf "  ${DIM}   Free sounds: https://opengameart.org/art-search?keys=rpg+sound${RESET}\n"
-fi
-printf "  ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
-echo ""
+}
+
+# Main
+case "${1:-help}" in
+    install)
+        install_rpg
+        ;;
+    uninstall)
+        uninstall_rpg
+        ;;
+    status)
+        check_status
+        ;;
+    help|--help|-h)
+        show_usage
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${RESET}\n"
+        show_usage
+        exit 1
+        ;;
+esac

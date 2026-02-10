@@ -15,13 +15,13 @@ LOG_FILE="$RPG_DIR/adventure.log"
 EVENT_FILE="$RPG_DIR/.last_event"
 
 # XP rewards per event
-XP_QUEST_ACCEPT=5      # UserPromptSubmit
-XP_CODE_FORGE=10       # Edit
-XP_SPELL_CAST=8        # Bash
-XP_ARTIFACT_CREATE=12  # Write
-XP_SCOUT=3             # Read/Grep/Glob
-XP_QUEST_COMPLETE=25   # Stop
-XP_SUBQUEST=15         # SubagentStop
+XP_QUEST_ACCEPT=2      # UserPromptSubmit
+XP_CODE_FORGE=5        # Edit
+XP_SPELL_CAST=3        # Bash
+XP_ARTIFACT_CREATE=6   # Write
+XP_SCOUT=1             # Read/Grep/Glob
+XP_QUEST_COMPLETE=10   # Stop
+XP_SUBQUEST=7          # SubagentStop
 
 # Colors
 RED='\033[0;31m'
@@ -40,7 +40,7 @@ RESET='\033[0m'
 #  LEVEL SYSTEM
 # ═══════════════════════════════════════════════
 
-LEVELS=(0 100 300 600 1000 1500 2200 3000 4000 5500)
+LEVELS=(0 500 1500 4000 8000 15000 25000 40000 60000 85000 120000 170000)
 TITLES=(
     "Apprentice"
     "Journeyman"
@@ -52,6 +52,8 @@ TITLES=(
     "Mythic"
     "Transcendent"
     "Digital Deity"
+    "Omniscient"
+    "The Eternal"
 )
 LEVEL_EMOJIS=(
     "📜"
@@ -64,6 +66,8 @@ LEVEL_EMOJIS=(
     "🌟"
     "✨"
     "🌌"
+    "💫"
+    "♾️"
 )
 
 # Flavor text for quest acceptance
@@ -302,12 +306,12 @@ show_session_start() {
 #  STATUS LINE EVENT NOTIFICATIONS
 # ═══════════════════════════════════════════════
 
-# Write a transient event for the status line to pick up (shown once, then cleared)
+# Write a transient event for the status line to pick up
 notify_statusline() {
     local event_type="$1"  # level_up, achievement, quest_complete, session_start
     local message="$2"
-    # Format: timestamp|type|message (timestamp first so message can contain pipes)
-    echo "$(date +%s)|${event_type}|${message}" > "$EVENT_FILE"
+    # Format: read_count|type|message (starts at 0, status line increments)
+    echo "0|${event_type}|${message}" > "$EVENT_FILE"
 }
 
 # ═══════════════════════════════════════════════
